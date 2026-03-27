@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok Grid Simulator - Admin Enhanced</title>
+    <style>
+        :root { 
+            --box-h: 24.5vh; 
+            --box-w: calc(var(--box-h) * 1.125); 
+            --tiktok-red: #fe2c55; 
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; gap: 20px; }
+
+        /* Panel admin disesuaikan sedikit untuk fitur baru */
+        .admin-panel { width: 260px; background: #1a1a1a; padding: 15px; border-radius: 12px; border: 1px solid #333; display: flex; flex-direction: column; gap: 8px; z-index: 1000; max-height: 95vh; overflow-y: auto; }
+        .mode-status { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #000; border-radius: 6px; border: 1px solid #222; }
+        .toggle-btn { padding: 5px 12px; border-radius: 20px; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; width: 55px; font-size: 10px;}
+        .on { background: #25f4ee; color: #000; } .off { background: #444; color: #fff; }
+
+        input, select { width: 100%; padding: 10px; border-radius: 6px; border: 1.5px solid #333; background: #000; color: #fff; outline: none; font-size: 12px;}
+        .btn-add { background: var(--tiktok-red); color: #fff; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; }
+        .btn-manual-coin { background: #fff; color: #000; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 11px; margin-top: 2px; }
+        
+        .delete-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 5px; }
+        .btn-del { background: #333; color: #fff; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 10px; }
+
+        .grid-container { display: grid; grid-template-columns: repeat(2, var(--box-w)); grid-template-rows: repeat(4, var(--box-h)); gap: 2px; background-color: #1a1a1a; }
+        .guest-box { width: var(--box-w); height: var(--box-h); position: relative; overflow: hidden; background-color: #000; }
+        .bg-blur { position: absolute; inset: 0; background-size: cover; background-position: center; filter: blur(20px) brightness(0.35); transform: scale(1.5); z-index: 1; }
+        
+        .gift-overlay { position: absolute; top: 8px; right: 8px; width: 32px; height: 32px; z-index: 100; display: none; filter: drop-shadow(0 0 5px rgba(0,0,0,0.8)); object-fit: contain; }
+        .show-gift { display: block !important; animation: popSpam 0.5s ease-out; }
+        @keyframes popSpam { 0% { transform: scale(0); } 70% { transform: scale(1.3); } 100% { transform: scale(1); } }
+
+        .content { position: relative; z-index: 10; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        
+        .coin-badge { position: absolute; top: 10px; left: 10px; background: rgba(0, 0, 0, 0.6); padding: 2px 6px 2px 2px; border-radius: 20px; display: flex; align-items: center; gap: 5px; color: #fff; font-size: 13px; font-weight: 800; }
+        .coin-outer { width: 20px; height: 20px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .coin-inner { width: 17px; height: 17px; background: radial-gradient(circle, #40E0D0 0%, #00D1FF 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .star-white { width: 10px; height: 10px; background: white; clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+
+        .avatar-main { width: 48%; aspect-ratio: 1/1; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.2); object-fit: cover; }
+        .bottom-bar { position: absolute; bottom: 8px; left: 6px; right: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .name-tag { background: rgba(0, 0, 0, 0.6); padding: 3px 8px; border-radius: 20px; display: flex; align-items: center; gap: 4px; }
+        
+        .username { color: #fff; font-size: 13px; font-weight: 600; max-width: 80px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .plus-white { width: 12px; height: 12px; background: rgba(255,255,255,0.4); border-radius: 50%; color: white; font-size: 9px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        .mic-box { position: relative; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; }
+        .mic-icon { width: 22px; height: 22px; fill: white; }
+        .mic-slash { position: absolute; width: 100%; height: 1.2px; background: white; transform: rotate(45deg); }
+        .request-box { display: flex; flex-direction: column; justify-content: center; align-items: center; background: #000; color: #fff; }
+    </style>
+</head>
+<body onclick="enableAudio()">
+
+    <div class="admin-panel">
+        <div class="mode-status">
+            <span style="color:white; font-size:10px;">AUTO JOIN (30s)</span>
+            <button id="autoToggle" class="toggle-btn off" onclick="toggleAuto()">OFF</button>
+        </div>
+        <div class="mode-status">
+            <span style="color:white; font-size:10px;">AUTO GIFT (SIM)</span>
+            <button id="giftToggle" class="toggle-btn off" onclick="toggleGift()">OFF</button>
+        </div>
+
+        <hr style="border: 0.5px solid #333; margin: 5px 0;">
+
+        <input type="text" id="targetId" placeholder="@Username Manual">
+        <button class="btn-add" onclick="fetchManual()">ADD MANUAL</button>
+        
+        <hr style="border: 0.5px solid #333; margin: 5px 0;">
+
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+            <span style="color: #888; font-size: 10px; font-weight: bold;">MANUAL COIN EDITOR</span>
+            <select id="coinSlotSelect">
+                <option value="-1">Pilih Slot...</option>
+                <option value="0">Slot 1</option><option value="1">Slot 2</option>
+                <option value="2">Slot 3</option><option value="3">Slot 4</option>
+                <option value="4">Slot 5</option><option value="5">Slot 6</option>
+                <option value="6">Slot 7</option><option value="7">Slot 8</option>
+            </select>
+            <input type="number" id="manualCoinVal" placeholder="Jumlah Koin">
+            <button class="btn-manual-coin" onclick="applyManualCoin()">APPLY COIN</button>
+        </div>
+
+        <div class="delete-grid" id="delBtns"></div>
+    </div>
+
+    <div class="grid-container" id="mainGrid"></div>
+
+<script>
+    let audioEnabled = false;
+    let autoMode = false;
+    let giftMode = false; // Status Auto Gift
+    let slotData = new Array(8).fill(null);
+    let slotEmptyTimer = new Array(8).fill(null); 
+    
+    const botBaseNames = ["Rizky", "Susi", "Budi", "Ani", "Eko", "Dina", "Joko", "Maya", "Hendra", "Putri", "Tono", "Santi", "Giri", "Wati", "Reza", "Amel"];
+
+    const giftList = [
+        { f: "TikTok Universee.png", p: 44999, d: 8000, s: "Universe.mp3", isSpam: false },
+        { f: "Lion.png", p: 29999, d: 6000, s: "Lion.mp3", isSpam: false },
+        { f: "Train.png", p: 899, d: 4000, isSpam: false },
+        { f: "Money Gun.png", p: 500, d: 3000, isSpam: false },
+        { f: "Heart Me.png", p: 1, d: 800, isSpam: false },
+        { f: "Bagel.png", p: 35, d: 1000, isSpam: true },
+        { f: "Doughnut.png", p: 30, d: 1000, isSpam: true },
+        { f: "Rosa.png", p: 10, d: 800, isSpam: true },
+        { f: "Finger Heart.png", p: 5, d: 800, isSpam: true },
+        { f: "Rose.png", p: 1, d: 600, isSpam: true },
+        { f: "TikTok.png", p: 1, d: 600, isSpam: true }
+    ];
+
+    function enableAudio() { audioEnabled = true; }
+    
+    function toggleAuto() {
+        autoMode = !autoMode;
+        const btn = document.getElementById('autoToggle');
+        btn.innerText = autoMode ? "ON" : "OFF";
+        btn.className = "toggle-btn " + (autoMode ? "on" : "off");
+        if(autoMode) {
+            slotData.forEach((u, i) => { if(!u) slotEmptyTimer[i] = Date.now(); });
+        }
+    }
+
+    // Fungsi Toggle Gift Baru
+    function toggleGift() {
+        giftMode = !giftMode;
+        const btn = document.getElementById('giftToggle');
+        btn.innerText = giftMode ? "ON" : "OFF";
+        btn.className = "toggle-btn " + (giftMode ? "on" : "off");
+    }
+
+    // Fungsi Apply Coin Manual Baru
+    function applyManualCoin() {
+        const slotIdx = parseInt(document.getElementById('coinSlotSelect').value);
+        const coinVal = parseInt(document.getElementById('manualCoinVal').value);
+        
+        if(slotIdx >= 0 && slotIdx < 8 && slotData[slotIdx] && !isNaN(coinVal)) {
+            slotData[slotIdx].coins = coinVal;
+            const coinTxt = document.getElementById(`coin-txt-${slotIdx}`);
+            if(coinTxt) coinTxt.innerText = formatKoin(slotData[slotIdx].coins);
+            document.getElementById('manualCoinVal').value = "";
+        } else {
+            alert("Pilih slot yang ada orangnya!");
+        }
+    }
+
+    function formatKoin(num) {
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+        if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+        return num;
+    }
+
+    async function fetchManual() {
+        const userVal = document.getElementById('targetId').value.replace('@', '').trim();
+        const slot = slotData.indexOf(null);
+        if(!userVal || slot === -1) return;
+        try {
+            const res = await fetch(`https://www.tikwm.com/api/user/info?unique_id=${userVal}`);
+            const json = await res.json();
+            if(json.code === 0) {
+                slotData[slot] = { 
+                    name: json.data.user.uniqueId, 
+                    img: json.data.user.avatarThumb, 
+                    coins: 0, 
+                    startTime: Date.now(),
+                    isManual: true 
+                };
+                slotEmptyTimer[slot] = null;
+                document.getElementById('targetId').value = "";
+                renderGrid();
+            }
+        } catch (e) {}
+    }
+
+    function addAutoUser(slot) {
+        const randomName = botBaseNames[Math.floor(Math.random() * botBaseNames.length)] + "_" + Math.floor(Math.random() * 999);
+        const randomImgId = Math.floor(Math.random() * 5000); 
+        const randomImg = `https://picsum.photos/200?random=${randomImgId}`;
+
+        slotData[slot] = {
+            name: randomName,
+            img: randomImg,
+            coins: 0,
+            startTime: Date.now(),
+            maxDuration: (Math.random() > 0.5 ? 180000 : 240000), 
+            isManual: false
+        };
+        slotEmptyTimer[slot] = null;
+        renderGrid();
+    }
+
+    function deleteSlot(i) { 
+        slotData[i] = null; 
+        slotEmptyTimer[i] = Date.now(); 
+        renderGrid(); 
+    }
+
+    function renderGrid() {
+        const grid = document.getElementById('mainGrid');
+        grid.innerHTML = '';
+        slotData.forEach((u, i) => {
+            const box = document.createElement('div');
+            box.className = u ? 'guest-box' : 'guest-box request-box';
+            box.innerHTML = u ? `
+                <div class="bg-blur" style="background-image: url('${u.img}')"></div>
+                <img src="" class="gift-overlay" id="gift-ui-${i}">
+                <div class="content">
+                    <div class="coin-badge">
+                        <div class="coin-outer"><div class="coin-inner"><div class="star-white"></div></div></div>
+                        <span id="coin-txt-${i}">${formatKoin(u.coins)}</span>
+                    </div>
+                    <img src="${u.img}" class="avatar-main">
+                    <div class="bottom-bar">
+                        <div class="name-tag"><span class="username">${u.name}</span><div class="plus-white">+</div></div>
+                        <div class="mic-box">
+                            <svg class="mic-icon" viewBox="0 0 24 24"><path d="M12,2A3,3,0,0,1,15,5V11A3,3,0,0,1,9,11V5A3,3,0,0,1,12,2M19,11C19,14.53,16.39,17.44,13,17.93V21H11V17.93C7.61,17.44,5,14.53,5,11H7A5,5,0,0,0,17,11Z"/></svg>
+                            <div class="mic-slash"></div>
+                        </div>
+                    </div>
+                </div>` : `<span style="font-size:30px">+</span><span style="font-size:10px">Request</span>`;
+            grid.appendChild(box);
+        });
+    }
+
+    setInterval(() => {
+        const now = Date.now();
+        slotData.forEach((u, i) => {
+            if(u && autoMode && !u.isManual && (now - u.startTime > u.maxDuration)) {
+                deleteSlot(i);
+            }
+            if(!u && autoMode && slotEmptyTimer[i]) {
+                if(now - slotEmptyTimer[i] >= 30000) { 
+                    addAutoUser(i);
+                }
+            }
+        });
+    }, 1000);
+
+    setInterval(() => {
+        if(!giftMode) return; // Jika Auto Gift OFF, berhenti di sini
+
+        const active = slotData.map((u, i) => u ? i : null).filter(v => v !== null);
+        if (active.length === 0) return;
+
+        const target = active[Math.floor(Math.random() * active.length)];
+        let pool = [];
+        giftList.forEach(g => {
+            if (g.f.includes("Universee") || g.f.includes("Lion")) {
+                for(let k=0; k<15; k++) pool.push(g);
+            } else if (g.isSpam) {
+                for(let k=0; k<8; k++) pool.push(g);
+            } else {
+                for(let k=0; k<5; k++) pool.push(g);
+            }
+        });
+        
+        const gift = pool[Math.floor(Math.random() * pool.length)];
+        const img = document.getElementById(`gift-ui-${target}`);
+        const coinTxt = document.getElementById(`coin-txt-${target}`);
+
+        if (gift.isSpam) {
+            let count = 0;
+            const spammer = setInterval(() => {
+                if(!slotData[target] || !giftMode) { clearInterval(spammer); return; }
+                slotData[target].coins += gift.p;
+                if(coinTxt) coinTxt.innerText = formatKoin(slotData[target].coins);
+                img.src = gift.f;
+                img.classList.remove('show-gift');
+                void img.offsetWidth;
+                img.classList.add('show-gift');
+                count++;
+                if(count >= 5) clearInterval(spammer);
+            }, 600); 
+        } else {
+            slotData[target].coins += gift.p;
+            if(coinTxt) coinTxt.innerText = formatKoin(slotData[target].coins);
+            img.src = gift.f;
+            img.classList.add('show-gift');
+            if(gift.s && audioEnabled) new Audio(gift.s).play().catch(()=>{});
+            setTimeout(() => { if(img) img.classList.remove('show-gift')}, gift.d);
+        }
+    }, 3800);
+
+    const delContainer = document.getElementById('delBtns');
+    for(let i=0; i<8; i++) delContainer.innerHTML += `<button class="btn-del" onclick="deleteSlot(${i})">Del ${i+1}</button>`;
+    
+    renderGrid();
+</script>
+</body>
+</html>
